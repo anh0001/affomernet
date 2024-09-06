@@ -13,6 +13,9 @@ from src.core import YAMLConfig
 import torch
 import torch.nn as nn 
 
+from PIL import Image, ImageDraw, ImageFont
+from torchvision.transforms import ToTensor
+from src.data.coco.coco_dataset import mscoco_category2name, mscoco_category2label, mscoco_label2category
 
 def main(args, ):
     """main
@@ -132,6 +135,57 @@ def main(args, ):
     # # Save the original image with bounding boxes
     # original_im.save('test.jpg')
 
+def inference(model_path, image_path, confidence_threshold=0.6):
+    import onnxruntime as ort
+
+    # Load the original image without resizing
+    original_im = Image.open(image_path).convert('RGB')
+    original_size = original_im.size
+
+    # Resize the image for model input
+    im = original_im.resize((640, 640))
+    im_data = ToTensor()(im)[None]
+    print(im_data.shape)
+
+    # Load ONNX model
+    sess = ort.InferenceSession(model_path)
+
+    # Prepare input feed
+    input_feed = {
+        'images': im_data.numpy(),
+        'orig_target_sizes': np.array([[640, 640]], dtype=np.int64)
+    }
+
+    # Run inference
+    output = sess.run(None, input_feed)
+
+    # Assuming the output order is [labels, boxes, scores]
+    labels, boxes, scores = output
+
+    draw = ImageDraw.Draw(original_im)  # Draw on the original image
+
+    # Use a default font
+    font = ImageFont.load_default()
+
+    for i in range(im_data.shape[0]):
+        scr = scores[i]
+        lab = labels[i][scr > confidence_threshold]
+        box = boxes[i][scr > confidence_threshold]
+
+        print(i, sum(scr > confidence_threshold))
+
+        for b, l in zip(box, lab):
+            # Scale the bounding boxes back to the original image size
+            b = [coord * original_size[j % 2] / 640 for j, coord in enumerate(b)]
+            # Get the category name from the label
+            category_name = mscoco_category2name[mscoco_label2category[l]]
+            draw.rectangle(list(b), outline='red', width=2)
+            draw.text((b[0], b[1]), text=category_name, fill='yellow', font=font)
+
+    # Save the original image with bounding boxes
+    result_path = 'inference_result.jpg'
+    original_im.save(result_path)
+    print(f"Inference result saved to {result_path}")
 
 if __name__ == '__main__':
 
@@ -141,7 +195,14 @@ if __name__ == '__main__':
     parser.add_argument('--file-name', '-f', type=str, default='model.onnx')
     parser.add_argument('--check',  action='store_true', default=False,)
     parser.add_argument('--simplify',  action='store_true', default=False,)
+    parser.add_argument('--inference', action='store_true', default=False,)
+    parser.add_argument('--image', type=str, help='Path to the input image for inference')
 
     args = parser.parse_args()
 
-    main(args)
+    if args.inference:
+        if not args.image:
+            raise ValueError("Please provide an input image path for inference using --image")
+        inference(args.file_name, args.image)
+    else:
+        main(args)
