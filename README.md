@@ -65,6 +65,7 @@ python tools/export_onnx.py -c configs/rtdetr/rtdetr_r18vd_6x_iit.yml -r path/to
 Example:
 ```bash
 python tools/export_onnx.py -c configs/rtdetr/rtdetr_r101vd_6x_coco.yml -r output/rtdetr_r101vd_2x_coco_objects365_from_paddle.pth --check -f output/rtdetr_r101vd_coco_objects365.onnx
+python tools/export_onnx.py -c configs/rtdetr/rtdetr_r50vd_6x_iit.yml -r output/rtdetr_r50vd_6x_iit/checkpoint0000.pth --check -f output/rtdetr_r50vd_6x_iit_1.onnx
 ```
 
 ## Inference
@@ -76,6 +77,7 @@ python tools/export_onnx.py --inference --file-name output/model.onnx --image pa
 Example:
 ```bash
 python tools/export_onnx.py --inference --file-name output/rtdetr_r101vd_coco_objects365.onnx --image dataset/coco/val2017/000000000139.jpg
+python tools/export_onnx.py --inference --file-name output/rtdetr_r50vd_6x_iit_1.onnx --image dataset/iit/data/VOCdevkit2012/VOC2012/JPEGImages/0.jpg
 ```
 
 ## Custom Data Training

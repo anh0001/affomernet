@@ -1,3 +1,4 @@
+*.jpg
 *env/
 dataset/
 output/
