@@ -40,6 +40,7 @@ Modify `img_folder` and `ann_file` in `coco_detection.yml`.
 ```bash
 export CUDA_VISIBLE_DEVICES=0
 python tools/train.py -c configs/rtdetr/rtdetr_r50vd_6x_iit.yml
+python tools/train.py -c configs/rtdetr/rtdetr_r50vd_6x_iit.yml -t output/rtdetr_r50vd_6x_coco/checkpoint0069.pth &> train.log 2>&1
 ```
 
 ### Multi-GPU
