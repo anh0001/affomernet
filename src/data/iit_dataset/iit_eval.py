@@ -11,7 +11,7 @@ def voc_eval(pred_boxlists, gt_boxlists, iou_thresh=0.5, use_07_metric=False):
     Returns:
         dict represents the results
     """
-    class_num = len(PascalVOCDetection.class_names)
+    class_num = len(IITDetection.class_names)
     pred_boxes = [boxlist.bbox.numpy() for boxlist in pred_boxlists]
     pred_labels = [boxlist.get_field("labels").numpy() for boxlist in pred_boxlists]
     pred_scores = [boxlist.get_field("scores").numpy() for boxlist in pred_boxlists]
@@ -44,7 +44,7 @@ def voc_eval_class(pred_boxes, pred_labels, pred_scores, gt_boxes, gt_labels,
 
     return rec, prec, ap
 
-class PascalVOCEvaluator:
+class IITEvaluator:
     def __init__(self, dataset, iou_thresh=0.5, use_07_metric=False):
         self.dataset = dataset
         self.iou_thresh = iou_thresh

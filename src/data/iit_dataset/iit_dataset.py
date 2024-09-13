@@ -8,9 +8,11 @@ from torchvision import datapoints
 from src.core import register
 
 @register
-class PascalVOCDetection(torch.utils.data.Dataset):
+class IITDetection(torch.utils.data.Dataset):
     __inject__ = ['transforms']
     
+    class_names = ['__background__', 'bowl', 'tvm', 'pan', 'hammer', 'knife', 'cup', 'drill', 'racket', 'spatula', 'bottle']
+
     def __init__(self, root, year='2012', image_set='train', transforms=None, use_difficult=False):
         self.root = root
         self.year = year
@@ -23,11 +25,6 @@ class PascalVOCDetection(torch.utils.data.Dataset):
         
         self._load_image_set_index()
         
-        self.class_names = [
-            'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat',
-            'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person',
-            'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
-        ]
         self.class_dict = {class_name: i for i, class_name in enumerate(self.class_names)}
 
     def _load_image_set_index(self):
@@ -92,6 +89,6 @@ class PascalVOCDetection(torch.utils.data.Dataset):
     def extra_repr(self) -> str:
         return f'Split: {self.image_set}, Year: {self.year}'
 
-pascal_voc_category2name = {i: name for i, name in enumerate(PascalVOCDetection.class_names)}
-pascal_voc_category2label = {i: i for i in range(len(PascalVOCDetection.class_names))}
-pascal_voc_label2category = {i: i for i in range(len(PascalVOCDetection.class_names))}
+iit_category2name = {i: name for i, name in enumerate(IITDetection.class_names)}
+iit_category2label = {i: i for i in range(len(IITDetection.class_names))}
+iit_label2category = {i: i for i in range(len(IITDetection.class_names))}

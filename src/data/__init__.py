@@ -1,6 +1,6 @@
 
 from .coco import *
-from .pascal_voc import *
+from .iit_dataset import *
 from .cifar10 import CIFAR10
 
 from .dataloader import *

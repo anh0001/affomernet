@@ -14,7 +14,7 @@ from typing import Iterable
 import torch
 import torch.amp 
 
-from src.data import CocoEvaluator, PascalVOCEvaluator
+from src.data import CocoEvaluator, IITEvaluator
 from src.misc import (MetricLogger, SmoothedValue, reduce_dict)
 
 
@@ -107,8 +107,8 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
         iou_types = postprocessors.iou_types
         coco_evaluator = CocoEvaluator(base_ds, iou_types)
         evaluator = coco_evaluator
-    elif isinstance(base_ds, PascalVOCDetection):
-        evaluator = PascalVOCEvaluator(base_ds)
+    elif isinstance(base_ds, IITDetection):
+        evaluator = IITEvaluator(base_ds)
     else:
         raise ValueError(f"Unsupported dataset type: {type(base_ds)}")
 

@@ -1,9 +1,9 @@
 __include__: [
-  '../dataset/pascal_voc_detection.yml',
+  '../dataset/iit_detection.yml',
   '../runtime.yml',
   './include/dataloader.yml',
   './include/optimizer.yml',
   './include/rtdetr_r50vd.yml',
 ]
 
-output_dir: ./output/rtdetr_r50vd_6x_pascal_voc
+output_dir: ./output/rtdetr_r50vd_6x_iit
