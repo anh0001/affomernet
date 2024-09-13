@@ -46,20 +46,20 @@ python tools/train.py -c configs/rtdetr/rtdetr_r50vd_6x_iit.yml
 
 ```bash
 export CUDA_VISIBLE_DEVICES=0,1,2,3
-torchrun --nproc_per_node=4 tools/train.py -c configs/rtdetr/rtdetr_r50vd_6x_coco.yml
+torchrun --nproc_per_node=4 tools/train.py -c configs/rtdetr/rtdetr_r50vd_6x_iit.yml
 ```
 
 ### Validation
 
 ```bash
 export CUDA_VISIBLE_DEVICES=0,1,2,3
-torchrun --nproc_per_node=4 tools/train.py -c configs/rtdetr/rtdetr_r50vd_6x_coco.yml -r path/to/checkpoint --test-only
+torchrun --nproc_per_node=4 tools/train.py -c configs/rtdetr/rtdetr_r50vd_6x_iit.yml -r path/to/checkpoint --test-only
 ```
 
 ## Export to ONNX
 
 ```bash
-python tools/export_onnx.py -c configs/rtdetr/rtdetr_r18vd_6x_coco.yml -r path/to/checkpoint --check
+python tools/export_onnx.py -c configs/rtdetr/rtdetr_r18vd_6x_iit.yml -r path/to/checkpoint --check
 ```
 
 Example:

@@ -105,8 +105,7 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
 
     if isinstance(base_ds, torchvision.datasets.CocoDetection):
         iou_types = postprocessors.iou_types
-        coco_evaluator = CocoEvaluator(base_ds, iou_types)
-        evaluator = coco_evaluator
+        evaluator = CocoEvaluator(base_ds, iou_types)
     elif isinstance(base_ds, IITDetection):
         evaluator = IITEvaluator(base_ds)
     else:
@@ -177,8 +176,6 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
     # if coco_evaluator is not None:
     #     coco_evaluator.accumulate()
     #     coco_evaluator.summarize()
-    evaluator.accumulate()
-    evaluator.summarize()
 
     # panoptic_res = None
     # if panoptic_evaluator is not None:
@@ -192,6 +189,7 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
     #     if 'segm' in iou_types:
     #         stats['coco_eval_masks'] = coco_evaluator.coco_eval['segm'].stats.tolist()
 
+    evaluator.accumulate()
     stats = evaluator.summarize()
 
     # if panoptic_res is not None:
@@ -199,7 +197,4 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
     #     stats['PQ_th'] = panoptic_res["Things"]
     #     stats['PQ_st'] = panoptic_res["Stuff"]
 
-    return stats, coco_evaluator
-
-
-
+    return stats, evaluator
