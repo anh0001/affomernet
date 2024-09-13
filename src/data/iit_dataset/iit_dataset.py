@@ -57,6 +57,10 @@ class IITDetection(torch.utils.data.Dataset):
         target['iscrowd'] = []
         target['difficult'] = []
 
+        size = node.find('size')
+        width = int(size.find('width').text)
+        height = int(size.find('height').text)
+
         for obj in node.findall('object'):
             difficult = int(obj.find('difficult').text) == 1
             if not self.use_difficult and difficult:
@@ -74,7 +78,7 @@ class IITDetection(torch.utils.data.Dataset):
 
         target['boxes'] = datapoints.BoundingBox(torch.tensor(target['boxes'], dtype=torch.float32), 
                                                  format=datapoints.BoundingBoxFormat.XYXY, 
-                                                 spatial_size=img.size[::-1])
+                                                 spatial_size=(height, width))
         target['labels'] = torch.tensor(target['labels'], dtype=torch.int64)
         target['area'] = torch.tensor(target['area'], dtype=torch.float32)
         target['iscrowd'] = torch.tensor(target['iscrowd'], dtype=torch.int64)
