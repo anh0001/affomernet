@@ -14,7 +14,7 @@ from typing import Iterable
 import torch
 import torch.amp 
 
-from src.data import CocoEvaluator
+from src.data import CocoEvaluator, PascalVOCEvaluator
 from src.misc import (MetricLogger, SmoothedValue, reduce_dict)
 
 
@@ -98,10 +98,19 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
     # metric_logger.add_meter('class_error', SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Test:'
 
-    # iou_types = tuple(k for k in ('segm', 'bbox') if k in postprocessors.keys())
-    iou_types = postprocessors.iou_types
-    coco_evaluator = CocoEvaluator(base_ds, iou_types)
-    # coco_evaluator.coco_eval[iou_types[0]].params.iouThrs = [0, 0.1, 0.5, 0.75]
+    # # iou_types = tuple(k for k in ('segm', 'bbox') if k in postprocessors.keys())
+    # iou_types = postprocessors.iou_types
+    # coco_evaluator = CocoEvaluator(base_ds, iou_types)
+    # # coco_evaluator.coco_eval[iou_types[0]].params.iouThrs = [0, 0.1, 0.5, 0.75]
+
+    if isinstance(base_ds, torchvision.datasets.CocoDetection):
+        iou_types = postprocessors.iou_types
+        coco_evaluator = CocoEvaluator(base_ds, iou_types)
+        evaluator = coco_evaluator
+    elif isinstance(base_ds, PascalVOCDetection):
+        evaluator = PascalVOCEvaluator(base_ds)
+    else:
+        raise ValueError(f"Unsupported dataset type: {type(base_ds)}")
 
     panoptic_evaluator = None
     # if 'panoptic' in postprocessors.keys():
@@ -142,8 +151,9 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
         #     results = postprocessors['segm'](results, outputs, orig_target_sizes, target_sizes)
 
         res = {target['image_id'].item(): output for target, output in zip(targets, results)}
-        if coco_evaluator is not None:
-            coco_evaluator.update(res)
+        # if coco_evaluator is not None:
+        #     coco_evaluator.update(res)
+        evaluator.update(res)
 
         # if panoptic_evaluator is not None:
         #     res_pano = postprocessors["panoptic"](outputs, target_sizes, orig_target_sizes)
@@ -157,28 +167,33 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)
-    if coco_evaluator is not None:
-        coco_evaluator.synchronize_between_processes()
-    if panoptic_evaluator is not None:
-        panoptic_evaluator.synchronize_between_processes()
+    # if coco_evaluator is not None:
+    #     coco_evaluator.synchronize_between_processes()
+    # if panoptic_evaluator is not None:
+    #     panoptic_evaluator.synchronize_between_processes()
+    evaluator.synchronize_between_processes()
 
-    # accumulate predictions from all images
-    if coco_evaluator is not None:
-        coco_evaluator.accumulate()
-        coco_evaluator.summarize()
+    # # accumulate predictions from all images
+    # if coco_evaluator is not None:
+    #     coco_evaluator.accumulate()
+    #     coco_evaluator.summarize()
+    evaluator.accumulate()
+    evaluator.summarize()
 
     # panoptic_res = None
     # if panoptic_evaluator is not None:
     #     panoptic_res = panoptic_evaluator.summarize()
     
-    stats = {}
-    # stats = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
-    if coco_evaluator is not None:
-        if 'bbox' in iou_types:
-            stats['coco_eval_bbox'] = coco_evaluator.coco_eval['bbox'].stats.tolist()
-        if 'segm' in iou_types:
-            stats['coco_eval_masks'] = coco_evaluator.coco_eval['segm'].stats.tolist()
-            
+    # stats = {}
+    # # stats = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+    # if coco_evaluator is not None:
+    #     if 'bbox' in iou_types:
+    #         stats['coco_eval_bbox'] = coco_evaluator.coco_eval['bbox'].stats.tolist()
+    #     if 'segm' in iou_types:
+    #         stats['coco_eval_masks'] = coco_evaluator.coco_eval['segm'].stats.tolist()
+
+    stats = evaluator.summarize()
+
     # if panoptic_res is not None:
     #     stats['PQ_all'] = panoptic_res["All"]
     #     stats['PQ_th'] = panoptic_res["Things"]
