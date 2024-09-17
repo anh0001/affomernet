@@ -9,7 +9,7 @@ import torch
 import torchvision 
 
 from src.misc import dist
-from src.data import IITDetection
+from src.data import IITDetection, IITEvaluator, CocoEvaluator
 
 from .solver import BaseSolver
 from .det_engine import train_one_epoch, evaluate
@@ -98,23 +98,58 @@ class DetSolver(BaseSolver):
                             filenames.append(f'{epoch:03}.pth')
                         for name in filenames:
                             torch.save(evaluator.coco_eval["bbox"].eval,
-                                       self.output_dir / "eval" / name)
+                                    self.output_dir / "eval" / name)
+                elif isinstance(evaluator, IITEvaluator):
+                    (self.output_dir / 'eval').mkdir(exist_ok=True)
+                    filenames = ['latest.pth']
+                    if epoch % 50 == 0:
+                        filenames.append(f'{epoch:03}.pth')
+                    for name in filenames:
+                        # Save the evaluation statistics
+                        torch.save({
+                            'stats': evaluator.stats,
+                            'class_names': evaluator.class_names,
+                            'iou_thresh': evaluator.iou_thresh,
+                            'use_07_metric': evaluator.use_07_metric
+                        }, self.output_dir / "eval" / name)
 
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
         print('Training time {}'.format(total_time_str))
 
 
-    def val(self, ):
+    def val(self):
         self.eval()
 
-        base_ds = get_coco_api_from_dataset(self.val_dataloader.dataset)
+        # Determine the dataset type
+        dataset = self.val_dataloader.dataset
+        for _ in range(10):  # Handle potential nested Subset wrappers
+            if isinstance(dataset, (torchvision.datasets.CocoDetection, IITDetection)):
+                break
+            if isinstance(dataset, torch.utils.data.Subset):
+                dataset = dataset.dataset
+
+        if isinstance(dataset, torchvision.datasets.CocoDetection):
+            base_ds = dataset.coco
+        elif isinstance(dataset, IITDetection):
+            base_ds = dataset
+        else:
+            raise ValueError(f"Unsupported dataset type: {type(dataset)}")
         
         module = self.ema.module if self.ema else self.model
-        test_stats, coco_evaluator = evaluate(module, self.criterion, self.postprocessor,
+        test_stats, evaluator = evaluate(module, self.criterion, self.postprocessor,
                 self.val_dataloader, base_ds, self.device, self.output_dir)
                 
         if self.output_dir:
-            dist.save_on_master(coco_evaluator.coco_eval["bbox"].eval, self.output_dir / "eval.pth")
+            if isinstance(evaluator, CocoEvaluator):
+                if "bbox" in evaluator.coco_eval:
+                    torch.save(evaluator.coco_eval["bbox"].eval, self.output_dir / "eval.pth")
+            elif isinstance(evaluator, IITEvaluator):
+                torch.save({
+                    'stats': evaluator.stats,
+                    'class_names': evaluator.class_names,
+                    'iou_thresh': evaluator.iou_thresh,
+                    'use_07_metric': evaluator.use_07_metric
+                }, self.output_dir / "eval.pth")
         
-        return
+        return test_stats

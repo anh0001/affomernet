@@ -63,6 +63,7 @@ class IITEvaluator:
 
     def update(self, predictions):
         for image_id, prediction in predictions.items():
+            image_id = str(image_id)
             self.image_ids.append(image_id)
             boxes = prediction['boxes'].tolist()
             scores = prediction['scores'].tolist()
@@ -82,13 +83,14 @@ class IITEvaluator:
         self.bbox_predictions = merged_predictions
 
         all_image_ids = dist.all_gather(self.image_ids)
-        self.image_ids = list(set([item for sublist in all_image_ids for item in sublist]))
+        self.image_ids = list(set([str(item) for sublist in all_image_ids for item in sublist]))
 
     def accumulate(self):
         # This method is not needed for this implementation
         pass
 
     def summarize(self):
+        print('Summarizing results...')
         aps = []
         # Create a temporary directory to store detection results
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -135,7 +137,7 @@ class IITEvaluator:
         for imagename in self.image_ids:
             R = [obj for obj in recs[imagename] if obj['name'] == classname]
             bbox = np.array([x['bbox'] for x in R])
-            difficult = np.array([x['difficult'] for x in R]).astype(np.bool)
+            difficult = np.array([x['difficult'] for x in R]).astype(bool)
             det = [False] * len(R)
             npos = npos + sum(~difficult)
             class_recs[imagename] = {'bbox': bbox, 'difficult': difficult, 'det': det}
@@ -145,7 +147,7 @@ class IITEvaluator:
             lines = f.readlines()
 
         splitlines = [x.strip().split(' ') for x in lines]
-        image_ids = [x[0] for x in splitlines]
+        image_ids = [str(x[0]) for x in splitlines]
         confidence = np.array([float(x[1]) for x in splitlines])
         BB = np.array([[float(z) for z in x[2:]] for x in splitlines])
 

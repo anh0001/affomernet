@@ -22,6 +22,8 @@ from src.misc import (MetricLogger, SmoothedValue, reduce_dict)
 def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, epoch: int, max_norm: float = 0, **kwargs):
+    print("Train one epoch...")
+    
     model.train()
     criterion.train()
     metric_logger = MetricLogger(delimiter="  ")
@@ -92,6 +94,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
 @torch.no_grad()
 def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors, data_loader, base_ds, device, output_dir):
+    print("Evaluate...")
     model.eval()
     criterion.eval()
 
