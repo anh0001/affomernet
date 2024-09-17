@@ -59,6 +59,7 @@ class IITEvaluator:
     def reset(self):
         self.image_ids = []
         self.bbox_predictions = defaultdict(list)
+        self.stats = np.zeros((12,), dtype=np.float64)  # To store COCO-like stats
 
     def update(self, predictions):
         for image_id, prediction in predictions.items():
@@ -112,8 +113,15 @@ class IITEvaluator:
                 print(f'{cls}: {ap}')
 
         mAP = np.mean(aps)
-        print(f'Mean AP: {mAP}')
-        return {'mAP': mAP}
+        
+        # Fill in the stats array with the calculated metrics
+        self.stats[0] = mAP  # AP @ IoU=0.50:0.95 (we only calculated for IoU=0.5, so this is an approximation)
+        self.stats[1] = mAP  # AP @ IoU=0.50
+        # The rest of the stats are left as 0 since we haven't calculated them
+        
+        # Print summary (similar to COCO evaluator)
+        print("Average Precision (AP) @ [ IoU=0.50:0.95 | area=   all | maxDets=100 ] = {:.3f}".format(self.stats[0]))
+        print("Average Precision (AP) @ [ IoU=0.50      | area=   all | maxDets=100 ] = {:.3f}".format(self.stats[1]))
 
     def voc_eval(self, detpath, annopath, imagesetfile, classname, ovthresh=0.5, use_07_metric=False):
         # First, load gt

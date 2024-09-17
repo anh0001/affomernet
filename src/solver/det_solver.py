@@ -5,10 +5,11 @@ import time
 import json
 import datetime
 
-import torch 
+import torch
+import torchvision 
 
 from src.misc import dist
-from src.data import get_coco_api_from_dataset
+from src.data import IITDetection
 
 from .solver import BaseSolver
 from .det_engine import train_one_epoch, evaluate
@@ -25,7 +26,21 @@ class DetSolver(BaseSolver):
         n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         print('number of params:', n_parameters)
 
-        base_ds = get_coco_api_from_dataset(self.val_dataloader.dataset)
+        # Handle dataset type
+        dataset = self.val_dataloader.dataset
+        for _ in range(10):  # Handle potential nested Subset wrappers
+            if isinstance(dataset, (torchvision.datasets.CocoDetection, IITDetection)):
+                break
+            if isinstance(dataset, torch.utils.data.Subset):
+                dataset = dataset.dataset
+
+        if isinstance(dataset, torchvision.datasets.CocoDetection):
+            base_ds = dataset.coco
+        elif isinstance(dataset, IITDetection):
+            base_ds = dataset
+        else:
+            raise ValueError(f"Unsupported dataset type: {type(dataset)}")
+
         # best_stat = {'coco_eval_bbox': 0, 'coco_eval_masks': 0, 'epoch': -1, }
         best_stat = {'epoch': -1, }
 
@@ -49,20 +64,21 @@ class DetSolver(BaseSolver):
                     dist.save_on_master(self.state_dict(epoch), checkpoint_path)
 
             module = self.ema.module if self.ema else self.model
-            test_stats, coco_evaluator = evaluate(
+            test_stats, evaluator = evaluate(
                 module, self.criterion, self.postprocessor, self.val_dataloader, base_ds, self.device, self.output_dir
             )
 
-            # TODO 
-            for k in test_stats.keys():
-                if k in best_stat:
-                    best_stat['epoch'] = epoch if test_stats[k][0] > best_stat[k] else best_stat['epoch']
-                    best_stat[k] = max(best_stat[k], test_stats[k][0])
-                else:
-                    best_stat['epoch'] = epoch
-                    best_stat[k] = test_stats[k][0]
-            print('best_stat: ', best_stat)
+            # Handle the stats
+            if 'coco_eval_bbox' in test_stats:
+                # COCO dataset
+                best_stat['epoch'] = epoch if test_stats['coco_eval_bbox'][0] > best_stat.get('coco_eval_bbox', [0])[0] else best_stat['epoch']
+                best_stat['coco_eval_bbox'] = max(best_stat.get('coco_eval_bbox', [0]), test_stats['coco_eval_bbox'], key=lambda x: x[0])
+            elif 'iit_eval_bbox' in test_stats:
+                # IIT dataset
+                best_stat['epoch'] = epoch if test_stats['iit_eval_bbox'][0] > best_stat.get('iit_eval_bbox', [0])[0] else best_stat['epoch']
+                best_stat['iit_eval_bbox'] = max(best_stat.get('iit_eval_bbox', [0]), test_stats['iit_eval_bbox'], key=lambda x: x[0])
 
+            print('best_stat: ', best_stat)
 
             log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                         **{f'test_{k}': v for k, v in test_stats.items()},
@@ -74,15 +90,15 @@ class DetSolver(BaseSolver):
                     f.write(json.dumps(log_stats) + "\n")
 
                 # for evaluation logs
-                if coco_evaluator is not None:
+                if isinstance(evaluator, CocoEvaluator):
                     (self.output_dir / 'eval').mkdir(exist_ok=True)
-                    if "bbox" in coco_evaluator.coco_eval:
+                    if "bbox" in evaluator.coco_eval:
                         filenames = ['latest.pth']
                         if epoch % 50 == 0:
                             filenames.append(f'{epoch:03}.pth')
                         for name in filenames:
-                            torch.save(coco_evaluator.coco_eval["bbox"].eval,
-                                    self.output_dir / "eval" / name)
+                            torch.save(evaluator.coco_eval["bbox"].eval,
+                                       self.output_dir / "eval" / name)
 
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))

@@ -7,6 +7,9 @@ from torchvision import datapoints
 
 from src.core import register
 
+__all__ = ['IITDetection']
+
+
 @register
 class IITDetection(torch.utils.data.Dataset):
     __inject__ = ['transforms']

@@ -12,9 +12,10 @@ import pathlib
 from typing import Iterable
 
 import torch
-import torch.amp 
+import torch.amp
+import torchvision 
 
-from src.data import CocoEvaluator, IITEvaluator
+from src.data import CocoEvaluator, IITEvaluator, IITDetection
 from src.misc import (MetricLogger, SmoothedValue, reduce_dict)
 
 
@@ -165,36 +166,17 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
-    print("Averaged stats:", metric_logger)
-    # if coco_evaluator is not None:
-    #     coco_evaluator.synchronize_between_processes()
-    # if panoptic_evaluator is not None:
-    #     panoptic_evaluator.synchronize_between_processes()
+
+    # accumulate predictions from all images
     evaluator.synchronize_between_processes()
-
-    # # accumulate predictions from all images
-    # if coco_evaluator is not None:
-    #     coco_evaluator.accumulate()
-    #     coco_evaluator.summarize()
-
-    # panoptic_res = None
-    # if panoptic_evaluator is not None:
-    #     panoptic_res = panoptic_evaluator.summarize()
-    
-    # stats = {}
-    # # stats = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
-    # if coco_evaluator is not None:
-    #     if 'bbox' in iou_types:
-    #         stats['coco_eval_bbox'] = coco_evaluator.coco_eval['bbox'].stats.tolist()
-    #     if 'segm' in iou_types:
-    #         stats['coco_eval_masks'] = coco_evaluator.coco_eval['segm'].stats.tolist()
-
     evaluator.accumulate()
-    stats = evaluator.summarize()
+    evaluator.summarize()
 
-    # if panoptic_res is not None:
-    #     stats['PQ_all'] = panoptic_res["All"]
-    #     stats['PQ_th'] = panoptic_res["Things"]
-    #     stats['PQ_st'] = panoptic_res["Stuff"]
+    stats = {}
+    if isinstance(evaluator, CocoEvaluator):
+        for iou_type in iou_types:
+            stats[f'coco_eval_{iou_type}'] = evaluator.coco_eval[iou_type].stats.tolist()
+    elif isinstance(evaluator, IITEvaluator):
+        stats['iit_eval_bbox'] = evaluator.stats.tolist()
 
     return stats, evaluator
