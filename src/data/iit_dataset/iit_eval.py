@@ -59,7 +59,7 @@ class IITEvaluator:
     def reset(self):
         self.image_ids = []
         self.bbox_predictions = defaultdict(list)
-        self.stats = np.zeros((12,), dtype=np.float64)  # To store COCO-like stats
+        self.stats = np.zeros((2,), dtype=np.float64)  # Only two stats we store are mAP and AP@0.5
 
     def update(self, predictions):
         for image_id, prediction in predictions.items():
