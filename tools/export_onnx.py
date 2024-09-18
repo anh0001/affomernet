@@ -16,6 +16,7 @@ import torch.nn as nn
 from PIL import Image, ImageDraw, ImageFont
 from torchvision.transforms import ToTensor
 from src.data.coco.coco_dataset import mscoco_category2name, mscoco_category2label, mscoco_label2category
+from src.data.iit.iit_dataset import iit_category2name, iit_category2label, iit_label2category
 
 def main(args, ):
     """main
@@ -135,7 +136,7 @@ def main(args, ):
     # # Save the original image with bounding boxes
     # original_im.save('test.jpg')
 
-def inference(model_path, image_path, confidence_threshold=0.6):
+def inference(model_path, image_path, dataset_type, confidence_threshold=0.6):
     import onnxruntime as ort
 
     # Load the original image without resizing
@@ -167,6 +168,16 @@ def inference(model_path, image_path, confidence_threshold=0.6):
     # Use a default font
     font = ImageFont.load_default()
 
+    # Choose the appropriate category mapping based on the dataset type
+    if dataset_type == 'coco':
+        category2name = mscoco_category2name
+        label2category = mscoco_label2category
+    elif dataset_type == 'iit':
+        category2name = iit_category2name
+        label2category = iit_label2category
+    else:
+        raise ValueError("Invalid dataset type. Choose 'coco' or 'iit'.")
+
     for i in range(im_data.shape[0]):
         scr = scores[i]
         lab = labels[i][scr > confidence_threshold]
@@ -178,7 +189,7 @@ def inference(model_path, image_path, confidence_threshold=0.6):
             # Scale the bounding boxes back to the original image size
             b = [coord * original_size[j % 2] / 640 for j, coord in enumerate(b)]
             # Get the category name from the label
-            category_name = mscoco_category2name[mscoco_label2category[l]]
+            category_name = category2name[label2category[l]]
             draw.rectangle(list(b), outline='red', width=2)
             draw.text((b[0], b[1]), text=category_name, fill='yellow', font=font)
 
@@ -197,12 +208,13 @@ if __name__ == '__main__':
     parser.add_argument('--simplify',  action='store_true', default=False,)
     parser.add_argument('--inference', action='store_true', default=False,)
     parser.add_argument('--image', type=str, help='Path to the input image for inference')
+    parser.add_argument('--dataset', type=str, choices=['coco', 'iit'], default='coco', help='Dataset type (coco or iit)')
 
     args = parser.parse_args()
 
     if args.inference:
         if not args.image:
             raise ValueError("Please provide an input image path for inference using --image")
-        inference(args.file_name, args.image)
+        inference(args.file_name, args.image, args.dataset)
     else:
         main(args)
