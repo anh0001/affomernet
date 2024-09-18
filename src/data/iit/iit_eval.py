@@ -122,8 +122,8 @@ class IITEvaluator:
         # The rest of the stats are left as 0 since we haven't calculated them
         
         # Print summary (similar to COCO evaluator)
-        print("Average Precision (AP) @ [ IoU=0.50:0.95 | area=   all | maxDets=100 ] = {:.3f}".format(self.stats[0]))
-        print("Average Precision (AP) @ [ IoU=0.50      | area=   all | maxDets=100 ] = {:.3f}".format(self.stats[1]))
+        print("Average Precision (AP) @ [ IoU=0.50:0.95 | area=   all | maxDets=100 ] = {:.6f}".format(self.stats[0]))
+        print("Average Precision (AP) @ [ IoU=0.50      | area=   all | maxDets=100 ] = {:.6f}".format(self.stats[1]))
 
     def voc_eval(self, detpath, annopath, imagesetfile, classname, ovthresh=0.5, use_07_metric=False):
         # First, load gt
