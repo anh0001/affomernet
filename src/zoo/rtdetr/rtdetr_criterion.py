@@ -199,6 +199,16 @@ class SetCriterion(nn.Module):
         }
         return losses
 
+    def loss_affordances(self, outputs, targets, indices, num_boxes):
+        assert 'pred_affordances' in outputs
+        idx = self._get_src_permutation_idx(indices)
+        src_affordances = outputs['pred_affordances'][idx]
+        target_affordances = torch.cat([t['affordances'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        
+        loss_affordance = F.cross_entropy(src_affordances, target_affordances, ignore_index=-1)
+        losses = {'loss_affordance': loss_affordance}
+        return losses
+
     def _get_src_permutation_idx(self, indices):
         # permute predictions following indices
         batch_idx = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
@@ -250,6 +260,11 @@ class SetCriterion(nn.Module):
             l_dict = self.get_loss(loss, outputs, targets, indices, num_boxes)
             l_dict = {k: l_dict[k] * self.weight_dict[k] for k in l_dict if k in self.weight_dict}
             losses.update(l_dict)
+
+        # Add affordance loss
+        if 'pred_affordances' in outputs:
+            affordance_loss = self.loss_affordances(outputs, targets, indices, num_boxes)
+            losses.update(affordance_loss)
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:

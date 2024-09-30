@@ -53,6 +53,11 @@ class RTDETRPostProcessor(nn.Module):
                 labels = torch.gather(labels, dim=1, index=index)
                 boxes = torch.gather(boxes, dim=1, index=index.unsqueeze(-1).tile(1, 1, boxes.shape[-1]))
 
+        if 'pred_affordances' in outputs:
+            affordances = outputs['pred_affordances']
+            affordances = F.interpolate(affordances, size=orig_target_sizes[0], mode='bilinear', align_corners=False)
+            affordances = affordances.argmax(dim=1)
+
         # TODO for onnx export
         if self.deploy_mode:
             return labels, boxes, scores
@@ -64,10 +69,10 @@ class RTDETRPostProcessor(nn.Module):
                 .to(boxes.device).reshape(labels.shape)
 
         results = []
-        for lab, box, sco in zip(labels, boxes, scores):
-            result = dict(labels=lab, boxes=box, scores=sco)
+        for lab, box, sco, aff in zip(labels, boxes, scores, affordances):
+            result = dict(labels=lab, boxes=box, scores=sco, affordances=aff)
             results.append(result)
-        
+
         return results
         
 

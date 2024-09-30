@@ -247,6 +247,7 @@ class TransformerDecoder(nn.Module):
         output = tgt
         dec_out_bboxes = []
         dec_out_logits = []
+        dec_out_features = []
         ref_points_detach = F.sigmoid(ref_points_unact)
 
         for i, layer in enumerate(self.layers):
@@ -261,6 +262,7 @@ class TransformerDecoder(nn.Module):
 
             if self.training:
                 dec_out_logits.append(score_head[i](output))
+                dec_out_features.append(output)
                 if i == 0:
                     dec_out_bboxes.append(inter_ref_bbox)
                 else:
@@ -269,14 +271,18 @@ class TransformerDecoder(nn.Module):
             elif i == self.eval_idx:
                 dec_out_logits.append(score_head[i](output))
                 dec_out_bboxes.append(inter_ref_bbox)
+                dec_out_features.append(output)
                 break
 
             ref_points = inter_ref_bbox
-            ref_points_detach = inter_ref_bbox.detach(
-            ) if self.training else inter_ref_bbox
+            ref_points_detach = inter_ref_bbox.detach() if self.training else inter_ref_bbox
 
-        return torch.stack(dec_out_bboxes), torch.stack(dec_out_logits)
-
+        return {
+            'pred_boxes': torch.stack(dec_out_bboxes),
+            'pred_logits': torch.stack(dec_out_logits),
+            'features': torch.stack(dec_out_features)
+        }
+    
 
 @register
 class RTDETRTransformer(nn.Module):
@@ -537,7 +543,7 @@ class RTDETRTransformer(nn.Module):
             self._get_decoder_input(memory, spatial_shapes, denoising_class, denoising_bbox_unact)
 
         # decoder
-        out_bboxes, out_logits = self.decoder(
+        decoder_outputs = self.decoder(
             target,
             init_ref_points_unact,
             memory,
@@ -548,27 +554,34 @@ class RTDETRTransformer(nn.Module):
             self.query_pos_head,
             attn_mask=attn_mask)
 
+        out_bboxes, out_logits = decoder_outputs['pred_boxes'], decoder_outputs['pred_logits']
+        decoder_features = decoder_outputs['features']  # New line to get features for affordance branch
+
         if self.training and dn_meta is not None:
             dn_out_bboxes, out_bboxes = torch.split(out_bboxes, dn_meta['dn_num_split'], dim=2)
             dn_out_logits, out_logits = torch.split(out_logits, dn_meta['dn_num_split'], dim=2)
 
-        out = {'pred_logits': out_logits[-1], 'pred_boxes': out_bboxes[-1]}
+        out = {
+            'pred_logits': out_logits[-1], 
+            'pred_boxes': out_bboxes[-1],
+            'features': decoder_features[-1]  # Add decoder features to the output
+        }
 
         if self.training and self.aux_loss:
-            out['aux_outputs'] = self._set_aux_loss(out_logits[:-1], out_bboxes[:-1])
-            out['aux_outputs'].extend(self._set_aux_loss([enc_topk_logits], [enc_topk_bboxes]))
+            out['aux_outputs'] = self._set_aux_loss(out_logits[:-1], out_bboxes[:-1], decoder_features[:-1])
+            out['aux_outputs'].extend(self._set_aux_loss([enc_topk_logits], [enc_topk_bboxes], [decoder_features[0]]))
             
             if self.training and dn_meta is not None:
-                out['dn_aux_outputs'] = self._set_aux_loss(dn_out_logits, dn_out_bboxes)
+                out['dn_aux_outputs'] = self._set_aux_loss(dn_out_logits, dn_out_bboxes, decoder_features[:len(dn_out_logits)])
                 out['dn_meta'] = dn_meta
 
         return out
 
 
     @torch.jit.unused
-    def _set_aux_loss(self, outputs_class, outputs_coord):
+    def _set_aux_loss(self, outputs_class, outputs_coord, features):
         # this is a workaround to make torchscript happy, as torchscript
         # doesn't support dictionary with non-homogeneous values, such
         # as a dict having both a Tensor and a list.
-        return [{'pred_logits': a, 'pred_boxes': b}
-                for a, b in zip(outputs_class, outputs_coord)]
+        return [{'pred_logits': a, 'pred_boxes': b, 'features': f}
+                for a, b, f in zip(outputs_class, outputs_coord, features)]
