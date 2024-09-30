@@ -64,9 +64,7 @@ AffordanceBranch:
   input_dim: 256  # Should match the output dimension of the RTDETRTransformer. This should match the hidden_dim of RTDETRTransformer
   hidden_dim: 512
   output_dim: 10  # 9 affordance classes + 1 background
-  num_conv_layers: 6
-  num_deconv_layers: 3
-
+  
 use_focal_loss: True
 
 RTDETRPostProcessor:
