@@ -200,12 +200,46 @@ class SetCriterion(nn.Module):
         return losses
 
     def loss_affordances(self, outputs, targets, indices, num_boxes):
-        assert 'pred_affordances' in outputs
+        """Compute the affordance segmentation loss
+
+        This method implements the affordance loss as described in the AffordanceNet paper.
+        The loss is based on multinomial cross-entropy, encouraging the network to predict
+        the correct affordance label for each pixel within the object region.
+
+        Formula from the paper:
+        L_aff(m, s) = -1/N ∑(i∈RoI) log(m^i_s_i)
+
+        Where:
+        - m^i_s_i is the softmax output at pixel i for the true label s_i
+        - N is the number of pixels in the RoI (Region of Interest)
+        """
+
+        # Extract predictions and targets based on matching indices
         idx = self._get_src_permutation_idx(indices)
         src_affordances = outputs['pred_affordances'][idx]
         target_affordances = torch.cat([t['affordances'][i] for t, (_, i) in zip(targets, indices)], dim=0)
-        
-        loss_affordance = F.cross_entropy(src_affordances, target_affordances, ignore_index=-1)
+
+        # Resize target affordances to match predicted affordances
+        # We use nearest-neighbor interpolation to preserve the discrete nature of affordance labels
+        target_affordances = F.interpolate(target_affordances.unsqueeze(1).float(), 
+                                           size=src_affordances.shape[-2:], 
+                                           mode='nearest').squeeze(1).long()
+
+        # Compute the cross-entropy loss
+        # PyTorch's cross_entropy function effectively implements the formula from the paper:
+        # - It applies softmax to the predictions (giving us m^i_s_i)
+        # - It computes the negative log likelihood
+        # - It averages over all pixels (equivalent to multiplying by 1/N)
+        loss_affordance = F.cross_entropy(src_affordances, target_affordances, ignore_index=255)
+
+        # Notes on the loss computation:
+        # 1. We use ignore_index=255 to potentially ignore certain pixels (e.g., those outside
+        #    the object or with undefined affordances) in the loss computation.
+        # 2. The cross-entropy loss allows the network to learn to distinguish between
+        #    multiple affordance classes, including background.
+        # 3. This approach encourages the network to make confident and accurate predictions
+        #    for each affordance class.
+
         losses = {'loss_affordance': loss_affordance}
         return losses
 
@@ -231,6 +265,8 @@ class SetCriterion(nn.Module):
             'bce': self.loss_labels_bce,
             'focal': self.loss_labels_focal,
             'vfl': self.loss_labels_vfl,
+
+            'affordances': self.loss_affordances,
         }
         assert loss in loss_map, f'do you really want to compute {loss} loss?'
         return loss_map[loss](outputs, targets, indices, num_boxes, **kwargs)

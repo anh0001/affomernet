@@ -10,6 +10,10 @@ class AffordanceBranch(nn.Module):
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
+        self.num_conv_layers = num_conv_layers
+        self.num_deconv_layers = num_deconv_layers
+        self.conv_kernel_size = conv_kernel_size
+        self.deconv_kernel_size = deconv_kernel_size
 
         # Feature combiner layer
         # Purpose: Combine features from all decoder layers into a single representation
@@ -75,7 +79,7 @@ class AffordanceBranch(nn.Module):
         x = self.final_conv(x)
 
         # Reshape output
-        output_size = 16 * (2 ** num_deconv_layers)
+        output_size = 16 * (2 ** self.num_deconv_layers)
         x = x.view(batch_size, num_queries, self.output_dim, output_size, output_size)
 
         return x
