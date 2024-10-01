@@ -53,10 +53,15 @@ class RTDETRPostProcessor(nn.Module):
                 labels = torch.gather(labels, dim=1, index=index)
                 boxes = torch.gather(boxes, dim=1, index=index.unsqueeze(-1).tile(1, 1, boxes.shape[-1]))
 
+        # Process affordances
         if 'pred_affordances' in outputs:
             affordances = outputs['pred_affordances']
-            affordances = F.interpolate(affordances, size=orig_target_sizes[0], mode='bilinear', align_corners=False)
+            # Resize affordances to match the original image size
+            affordances = F.interpolate(affordances, size=orig_target_sizes[0].tolist(), mode='bilinear', align_corners=False)
+            # Get the most likely affordance class for each pixel
             affordances = affordances.argmax(dim=1)
+        else:
+            affordances = None
 
         # TODO for onnx export
         if self.deploy_mode:

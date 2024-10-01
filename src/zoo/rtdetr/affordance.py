@@ -76,10 +76,9 @@ class AffordanceBranch(nn.Module):
             x = layer(x)
 
         # Final convolution for affordance scoring
-        x = self.final_conv(x)
+        pred_affordances = self.final_conv(x)
 
-        # Reshape output
         output_size = 16 * (2 ** self.num_deconv_layers)
-        x = x.view(batch_size, num_queries, self.output_dim, output_size, output_size)
+        pred_affordances = pred_affordances.view(batch_size, num_queries, self.output_dim, output_size, output_size)
 
-        return x
+        return {'pred_affordances': pred_affordances}
