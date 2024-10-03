@@ -4,6 +4,8 @@ import torch.utils.data
 import xml.etree.ElementTree as ET
 from PIL import Image
 from torchvision import datapoints
+import numpy as np
+import pickle
 
 from src.core import register
 
@@ -23,9 +25,10 @@ class IITDetection(torch.utils.data.Dataset):
         self._transforms = transforms
         self.use_difficult = use_difficult
         
-        self.imgs_path = os.path.join(self.root, 'JPEGImages')
-        self.annos_path = os.path.join(self.root, 'Annotations')
-        self.mask_cache_path = os.path.join(self.root, 'cache', f'GTsegmask_{self.image_set}')
+        self.voc_root = os.path.join(root, f'VOCdevkit{year}', f'VOC{year}')
+        self.imgs_path = os.path.join(self.voc_root, 'JPEGImages')
+        self.annos_path = os.path.join(self.voc_root, 'Annotations')
+        self.mask_cache_path = os.path.join(root, 'cache', f'GTsegmask_VOC_{year}_{image_set}')
         
         self._load_image_set_index()
         

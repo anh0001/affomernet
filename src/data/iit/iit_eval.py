@@ -4,6 +4,7 @@ import torch
 from src.misc import dist
 from collections import defaultdict
 import tempfile
+import pickle
 
 def parse_rec(filename):
     """ Parse a PASCAL VOC xml file """
@@ -117,7 +118,7 @@ class IITEvaluator:
                 bbox_filename = os.path.join(tmp_dir, f'{cls}_bbox_det.txt')
                 mask_filename = os.path.join(tmp_dir, f'{cls}_mask_det.txt')
 
-                with open(filename, 'w') as f:
+                with open(bbox_filename, 'w') as f:
                     if cls in self.bbox_predictions:
                         for pred in self.bbox_predictions[cls]:
                             f.write(f"{pred[0]} {pred[1]} {pred[2]} {pred[3]} {pred[4]} {pred[5]}\n")
