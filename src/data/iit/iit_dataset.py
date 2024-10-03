@@ -25,6 +25,7 @@ class IITDetection(torch.utils.data.Dataset):
         
         self.imgs_path = os.path.join(self.root, 'JPEGImages')
         self.annos_path = os.path.join(self.root, 'Annotations')
+        self.mask_cache_path = os.path.join(self.root, 'cache', f'GTsegmask_{self.image_set}')
         
         self._load_image_set_index()
         
@@ -43,6 +44,23 @@ class IITDetection(torch.utils.data.Dataset):
         img = Image.open(img_path).convert('RGB')
         target = self.parse_voc_xml(ET.parse(anno_path).getroot())
         
+        # Load masks
+        mask_count = 1
+        masks = []
+        while True:
+            mask_path = os.path.join(self.mask_cache_path, f'{img_id}_{mask_count}_segmask.sm')
+            if not os.path.exists(mask_path):
+                break
+            with open(mask_path, 'rb') as f:
+                mask = pickle.load(f)
+            masks.append(mask)
+            mask_count += 1
+        
+        if masks:
+            target['masks'] = torch.as_tensor(np.stack(masks), dtype=torch.uint8)
+        else:
+            target['masks'] = torch.zeros((0, img.height, img.width), dtype=torch.uint8)
+
         if self._transforms is not None:
             img, target = self._transforms(img, target)
         
